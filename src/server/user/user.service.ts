@@ -22,7 +22,7 @@ export class UserService {
 
   // 根据用户名查找单个用户
   async findOneByUserName(userName: string): Promise<User> {
-    return await this.userModel.findOne({ user_name: userName });
+    return await this.userModel.findOne({ userName: userName });
   }
 
   // 添加单个用户

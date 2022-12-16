@@ -1,13 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
 import { CreateUserDTO, EditUserDTO } from "./user.dto";
 import { User, IResponse } from "./user.interface";
 import { UserService } from "./user.service";
+import { AuthService } from "src/logical/auth/auth.service";
 import { makeSalt, encryptPassword } from "src/utils/cryptogram";
 import { randomUUID } from "crypto";
+import { AuthGuard } from "@nestjs/passport";
 
 @Controller("user")
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService, private readonly authService: AuthService) {}
 
   // GET /user/getAll
   @Get("getAll")
@@ -109,10 +111,11 @@ export class UserController {
   }
 
   // POST /user/register
+  @UseGuards(AuthGuard("jwt")) // 使用 'JWT' 进行验证
   @Post("register")
   async register(@Body() body: EditUserDTO) {
-    const { user_name, password } = body;
-    const user = await this.findOneByUserName(user_name);
+    const { userName, password } = body;
+    const user = await this.findOneByUserName(userName);
     if (user) {
       return {
         code: 400,
@@ -122,7 +125,7 @@ export class UserController {
     const salt = makeSalt(); // 制作密码盐
     const hashPwd = encryptPassword(password, salt); // 加密密码
     try {
-      await this.addOne({ _id: randomUUID(), user_name, password: hashPwd, passwordSalt: salt });
+      await this.addOne({ _id: randomUUID(), userName, password: hashPwd, passwordSalt: salt });
       return {
         code: 200,
         msg: "新增成功",
@@ -132,6 +135,28 @@ export class UserController {
         code: 500,
         msg: `Service error: ${err}`,
       };
+    }
+  }
+
+  // POST /user/login
+  // JWT验证 - Step 1: 用户请求登录
+  @Post("login")
+  async login(@Body() loginParmas: EditUserDTO) {
+    console.log("JWT验证 - Step 1: 用户请求登录");
+    const authResult = await this.authService.validateUser(loginParmas.userName, loginParmas.password);
+    switch (authResult.code) {
+      case 1:
+        return this.authService.certificate(authResult.user);
+      case 2:
+        return {
+          code: 400,
+          msg: `账号或密码不正确`,
+        };
+      default:
+        return {
+          code: 400,
+          msg: `查无此人`,
+        };
     }
   }
 }
