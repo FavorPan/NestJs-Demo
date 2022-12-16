@@ -1,7 +1,13 @@
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
 
 export interface User extends Document {
   readonly _id: string;
   readonly user_name: string;
   readonly password: string;
+}
+
+export interface IResponse<T = unknown> {
+  code: number;
+  data?: T;
+  msg: string;
 }
